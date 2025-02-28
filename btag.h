@@ -50,14 +50,16 @@ public:
         return false;
     }
 
-    using histEffmap= std::map<std::pair<WorkingPointsbTag, int>, std::shared_ptr<TH2>> ;
-    bTagCorrProvider(const std::string& fileName, const std::string& efficiencyFileName) :
-        corrections_(CorrectionSet::from_file(fileName)),
-        deepJet_incl_(corrections_->at("deepJet_incl")),
-        deepJet_comb_(corrections_->at("deepJet_comb")),
-        deepJet_wp_values_(corrections_->at("deepJet_wp_values"))
+    using histEffmap = std::map<std::pair<WorkingPointsbTag, int>, std::shared_ptr<TH2>> ;
+
+    bTagCorrProvider(const std::string& fileName, const std::string& efficiencyFileName, std::string const& tagger_name) 
+    :   corrections_(CorrectionSet::from_file(fileName))
+    // ,   tagger_incl_(corrections_->at(tagger_name + "_incl")) // keys *_incl are not available in 2022 json file
+    ,   tagger_comb_(corrections_->at(tagger_name + "_comb"))
+    ,   tagger_wp_values_(corrections_->at(tagger_name + "_wp_values"))
     {
-        if(efficiencyFileName.size()>0){
+        if (efficiencyFileName.size() > 0)
+        {
             auto efficiencyFile = root_ext::OpenRootFile(efficiencyFileName);
             static const std::vector<std::string> WpNames = {"Loose", "Medium", "Tight"};
             static const std::vector<int> Flavours = {0, 4, 5};
@@ -70,19 +72,21 @@ public:
                 }
             }
         }
-        for (const auto &wp_entry : getWPNames()) {
-            wp_thrs[wp_entry.first] = deepJet_wp_values_->evaluate({wp_entry.second.first});
+
+        for (auto const& wp_entry : getWPNames()) 
+        {
+            wp_thrs[wp_entry.first] = tagger_wp_values_->evaluate({wp_entry.second.first});
         }
     }
 
     float getWPvalue(WorkingPointsbTag wp) const { return wp_thrs.at(wp); }
 
-    RVecI getWPBranch(const RVecF & Jet_btagDeepFlavB) const {
-        RVecI Jet_idbtagDeepFlavB(Jet_btagDeepFlavB.size(), 0);
-        for(size_t jet_idx = 0; jet_idx < Jet_btagDeepFlavB.size(); jet_idx++){
-            Jet_idbtagDeepFlavB[jet_idx] =  int(Jet_btagDeepFlavB[jet_idx] > wp_thrs.at(WorkingPointsbTag::Loose)) + int(Jet_btagDeepFlavB[jet_idx] > wp_thrs.at(WorkingPointsbTag::Medium)) + int(Jet_btagDeepFlavB[jet_idx] > wp_thrs.at(WorkingPointsbTag::Tight));
+    RVecI getWPBranch(RVecF const& btag_score) const {
+        RVecI Jet_idbtag(btag_score.size(), 0);
+        for(size_t jet_idx = 0; jet_idx < btag_score.size(); jet_idx++){
+            Jet_idbtag[jet_idx] = int(btag_score[jet_idx] > wp_thrs.at(WorkingPointsbTag::Loose)) + int(btag_score[jet_idx] > wp_thrs.at(WorkingPointsbTag::Medium)) + int(btag_score[jet_idx] > wp_thrs.at(WorkingPointsbTag::Tight));
         }
-        return Jet_idbtagDeepFlavB;
+        return Jet_idbtag;
     }
 
     float getSF(const RVecLV& Jet_p4, const RVecB& pre_sel, const RVecI& Jet_Flavour,const RVecF& Jet_bTag_score, WorkingPointsbTag btag_wp, UncSource source, UncScale scale) const
@@ -95,7 +99,7 @@ public:
                                            ? scale : UncScale::Central;
             const std::string& scale_str = getScaleStr(jet_tag_scale, source);
             float eff_MC = GetNormalisedEfficiency(GetBtagEfficiency(Jet_p4[jet_idx].pt(), std::abs(Jet_p4[jet_idx].eta()), Jet_Flavour[jet_idx], btag_wp));
-            auto sf_source = Jet_Flavour[jet_idx] == 0 ? &deepJet_incl_ : &deepJet_comb_;
+            auto sf_source = Jet_Flavour[jet_idx] == 0 ? &tagger_incl_ : &tagger_comb_;
             float SF = (*sf_source)->evaluate({scale_str, getWPNames().at(btag_wp).first,  Jet_Flavour[jet_idx], std::abs(Jet_p4[jet_idx].eta()),Jet_p4[jet_idx].pt() });
             float eff_data = GetNormalisedEfficiency(eff_MC*SF);
             if(Jet_bTag_score[jet_idx] > getWPvalue(btag_wp)) {
@@ -141,7 +145,7 @@ private:
     }
 private:
     std::unique_ptr<CorrectionSet> corrections_;
-    Correction::Ref deepJet_incl_, deepJet_comb_,deepJet_wp_values_;
+    Correction::Ref tagger_incl_, tagger_comb_,tagger_wp_values_;
     histEffmap histMapEfficiency;
     std::map<WorkingPointsbTag, float> wp_thrs;
 

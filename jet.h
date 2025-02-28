@@ -276,7 +276,7 @@ private:
             return all_shifted_p4;
         }
 
-        RVecF GetResolutions(RVecF pt, RVecF mass, RVecF const& raw_factor, RVecF const& eta, float rho)
+        RVecF GetResolutions(RVecF pt, RVecF mass, RVecF const& raw_factor, RVecF const& eta, float rho) const
         {
             size_t sz = pt.size();
             RVecF res(sz);
@@ -286,7 +286,7 @@ private:
                 mass[i] *= 1.0 - raw_factor[i];
                 float jer_sf = corr_jer_sf_->evaluate({eta[i], pt[i], "nom"});
                 float jer_pt_res = corr_jer_res_->evaluate({eta[i], pt[i], rho});
-                res.push_back(jer_pt_res);
+                res[i] = jer_pt_res;
             }
             return res;
         }
