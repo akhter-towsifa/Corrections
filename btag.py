@@ -23,7 +23,7 @@ def InList(src_name, jes_list):
     if len(split_src_name) == 1:
         return src_name in jes_list
     elif len(split_src_name) > 1:
-        to_check = split_src_name[0] + '_'
+        to_check = split_src_name[1] + '_'
         return to_check in jes_list
     else:
         raise RuntimeError(f"Cannot parse source name: {src_name}")
@@ -40,10 +40,11 @@ class bTagCorrProducer:
     tagger_to_brag_branch = {"particleNet": "PNetB",
                              "deepJet": "DeepFlavB"}
 
-    def __init__(self, period, loadEfficiency=False, tagger_name="deepJet", use_split_jes=False):
+    def __init__(self, period, presel_jet_branch_name, loadEfficiency=False, tagger_name="deepJet", use_split_jes=False):
         print(f"tagger_name={tagger_name}")
         self.tagger_name = tagger_name
         self.btag_branch = bTagCorrProducer.tagger_to_brag_branch[tagger_name]
+        self.presel_branch_name = presel_jet_branch_name
         self.use_split_jes = use_split_jes
         jsonFile = bTagCorrProducer.jsonPath.format(period)
         jsonFile_eff = os.path.join(os.environ['ANALYSIS_PATH'],bTagCorrProducer.bTagEff_JsonPath.format(period))
@@ -142,7 +143,7 @@ class bTagCorrProducer:
 
                 df = df.Define(f"{branch_name}_double",
                     f'''::correction::bTagShapeCorrProvider::getGlobal().getBTagShapeSF(
-                    Jet_p4, Jet_sel, Jet_hadronFlavour, Jet_btag{self.btag_branch},
+                    Jet_p4, {self.presel_branch_name}, Jet_hadronFlavour, Jet_btag{self.btag_branch},
                     ::correction::bTagShapeCorrProvider::UncSource::{source},
                     ::correction::UncScale::{scale}
                     ) ''')
