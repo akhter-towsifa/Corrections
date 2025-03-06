@@ -18,7 +18,7 @@ import yaml
 
 # shouldcorrectly process source name containing two underscores (e.g. JES_Absolute_2022)
 # will correctly cut out second word and check if its in the list
-def InList(src_name, jes_list):
+def IsInJESList(src_name, jes_list):
     split_src_name = src_name.split('_')
     if len(split_src_name) == 1:
         return src_name in jes_list
@@ -40,11 +40,11 @@ class bTagCorrProducer:
     tagger_to_brag_branch = {"particleNet": "PNetB",
                              "deepJet": "DeepFlavB"}
 
-    def __init__(self, period, presel_jet_branch_name, loadEfficiency=False, tagger_name="deepJet", use_split_jes=False):
+    def __init__(self, period, bjet_preselection_branch, loadEfficiency=False, tagger_name="deepJet", use_split_jes=False):
         print(f"tagger_name={tagger_name}")
         self.tagger_name = tagger_name
         self.btag_branch = bTagCorrProducer.tagger_to_brag_branch[tagger_name]
-        self.presel_branch_name = presel_jet_branch_name
+        self.bjet_preselection_branch = bjet_preselection_branch
         self.use_split_jes = use_split_jes
         jsonFile = bTagCorrProducer.jsonPath.format(period)
         jsonFile_eff = os.path.join(os.environ['ANALYSIS_PATH'],bTagCorrProducer.bTagEff_JsonPath.format(period))
@@ -120,7 +120,7 @@ class bTagCorrProducer:
             scale_list = [ central ] + sf_scales
 
         if not isCentral:
-            if InList(src_name, bTagCorrProducer.uncSources_bTagShape_jes):
+            if IsInJESList(src_name, bTagCorrProducer.uncSources_bTagShape_jes):
                 src_list = [ src_name ]
                 scale_list = [ scale_name ]
             else:
@@ -143,7 +143,7 @@ class bTagCorrProducer:
 
                 df = df.Define(f"{branch_name}_double",
                     f'''::correction::bTagShapeCorrProvider::getGlobal().getBTagShapeSF(
-                    Jet_p4, {self.presel_branch_name}, Jet_hadronFlavour, Jet_btag{self.btag_branch},
+                    Jet_p4, {self.bjet_preselection_branch}, Jet_hadronFlavour, Jet_btag{self.btag_branch},
                     ::correction::bTagShapeCorrProvider::UncSource::{source},
                     ::correction::UncScale::{scale}
                     ) ''')
